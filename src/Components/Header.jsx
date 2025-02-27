@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "../utils/firebase";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { useSelector, useDispatch } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { addUser, removeUser } from "../utils/userSlice";
 import { BG_URL, LOGO, SUPPORTED_LANGUAGES } from "../utils/constent";
 import { toggleGptSearchView } from "../utils/gptSlice";
@@ -13,6 +13,8 @@ const Header = () => {
   const navigate = useNavigate();
   const user = useSelector((store) => store.user);
   const showGptSearch = useSelector((store) => store.gpt.showGptSearch);
+  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [userImageLoaded, setUserImageLoaded] = useState(false);
 
   const handleSignOut = () => {
     signOut(auth)
@@ -27,8 +29,6 @@ const Header = () => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log("Auth state changed:", user); // Debugging
-
       if (user) {
         const { uid, email, displayName, photoURL } = user;
         dispatch(addUser({ uid, email, displayName, photoURL }));
@@ -39,7 +39,7 @@ const Header = () => {
       }
     });
 
-    return () => unsubscribe(); // Cleanup on component unmount
+    return () => unsubscribe();
   }, []);
 
   const handleGPTSearchClick = () => {
@@ -52,22 +52,34 @@ const Header = () => {
 
   return (
     <header className="fixed w-full px-4 sm:px-8 py-2 bg-gradient-to-b from-black to-black z-50 flex flex-col md:flex-row justify-between items-center">
-      {/* Logo */}
-      <img className="w-28 sm:w-36 lg:w-44" src={LOGO} alt="Netflix logo" />
+      {/* Logo with Lazy Loading */}
+      <div className="w-28 sm:w-36 lg:w-44">
+        {!logoLoaded && <div className="w-full h-full bg-gray-800 animate-pulse"></div>}
+        <img
+          className={`w-full ${logoLoaded ? "opacity-100" : "opacity-0 transition-opacity duration-500"}`}
+          src={LOGO}
+          alt="Netflix logo"
+          onLoad={() => setLogoLoaded(true)}
+        />
+      </div>
 
-      {/* User Section (Only if logged in) */}
+      {/* User Section */}
       {user && (
         <div className="flex justify-end items-center space-x-3">
-          {/* User Photo (Only if available) */}
+          {/* User Photo with Lazy Loading */}
           {user.photoURL && (
-            <img
-              className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 rounded-full hover:opacity-75"
-              src={user.photoURL}
-              alt="User Photo"
-            />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16">
+              {!userImageLoaded && <div className="w-full h-full bg-gray-800 animate-pulse rounded-full"></div>}
+              <img
+                className={`w-full h-full rounded-full ${userImageLoaded ? "opacity-100" : "opacity-0 transition-opacity duration-500"}`}
+                src={user.photoURL}
+                alt="User Photo"
+                onLoad={() => setUserImageLoaded(true)}
+              />
+            </div>
           )}
 
-          {/* Language Selection (Only visible when GPT Search is active) */}
+          {/* Language Selection */}
           {showGptSearch && (
             <div className="relative">
               <select
@@ -88,13 +100,7 @@ const Header = () => {
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                <path
-                  d="M6 9L12 15L18 9"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
           )}
@@ -107,7 +113,7 @@ const Header = () => {
             {showGptSearch ? "Home" : "GPT Search"}
           </button>
 
-          {/* Sign Out Button (Always Visible) */}
+          {/* Sign Out Button */}
           <button
             onClick={handleSignOut}
             className="font-bold px-3 py-1 sm:px-4 sm:py-2 lg:px-6 lg:py-3 bg-yellow-500 border border-yellow-600 rounded-lg hover:bg-yellow-700"
